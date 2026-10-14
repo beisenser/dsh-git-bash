@@ -26,6 +26,14 @@ if (process.arch !== "x64") {
   throw new Error("native token guard currently supports win32-x64, received " + process.platform + "-" + process.arch);
 }
 
+// The guard artifacts are committed, so a checkout already carries a usable
+// guard. Rebuilding is opt-in: pass --force, or delete native/bin to regenerate.
+const force = process.argv.slice(2).includes("--force");
+if (!force && existsSync(executable) && existsSync(hook)) {
+  console.log("using committed token guard artifacts: " + executable + ", " + hook + " (pass --force to rebuild)");
+  process.exit(0);
+}
+
 mkdirSync(buildDir, { recursive: true });
 run("cmake", ["--fresh", "-S", sourceDir, "-B", buildDir, "-A", "x64"]);
 run("cmake", ["--build", buildDir, "--config", "Release", "--target", "msys-token-guard", "msys-token-guard-hook"]);

@@ -178,9 +178,9 @@ test("enriches the guard DACL failure with an actionable hint", () => {
 test("runs foreground commands directly in danger-full-access", async () => {
   const { ctx, executor } = createExecutor();
   try {
-    const result = await executor.run(executor.resolve({
+    const result = await (await executor.execute(executor.resolve({
       command: "printf '%s|%s|%s' \"$BASH_VERSION\" \"$MSYSTEM\" \"$BASH\"",
-    }));
+    }))).result();
 
     assert.equal(result.exitCode, 0, result.stderr.text);
     assert.equal(result.signal, null);
@@ -199,9 +199,9 @@ test("runs foreground commands directly in danger-full-access", async () => {
 test("runs background commands directly through Git Bash", async () => {
   const { ctx, executor } = createExecutor();
   try {
-    const process = await executor.start(executor.resolve({
-      command: "printf '%s' \"$MSYSTEM\"",
-    }));
+    const process = await executor.execute(
+      executor.resolve({ command: "printf '%s' \"$MSYSTEM\"", onExpiry: "none" }),
+    );
     await process.done;
     const output = process.readOutput();
 
@@ -217,9 +217,9 @@ test("runs background commands directly through Git Bash", async () => {
 test("runs Git Bash and nested MSYS children under read-only", { skip: !CAN_RUN_NATIVE_GUARD }, async () => {
   const { ctx, executor } = createExecutor("read-only");
   try {
-    const result = await executor.run(executor.resolve({
+    const result = await (await executor.execute(executor.resolve({
       command: "printf 'root|'; bash --noprofile --norc -c 'printf nested'; printf '|'; git --version",
-    }));
+    }))).result();
 
     assert.equal(result.exitCode, 0, result.stderr.text);
     assert.match(result.stdout.text, /^root\|nested\|git version /);
@@ -238,9 +238,9 @@ test("read-only denies workspace writes", { skip: !CAN_RUN_NATIVE_GUARD }, async
   rmSync(probe, { force: true });
   const { ctx, executor } = createExecutor("read-only");
   try {
-    const result = await executor.run(executor.resolve({
+    const result = await (await executor.execute(executor.resolve({
       command: "printf blocked > " + probe,
-    }));
+    }))).result();
 
     assert.notEqual(result.exitCode, 0);
     assert.match(result.stderr.text, /permission denied/i);
@@ -263,9 +263,9 @@ test("workspace-write allows workspace writes and denies sibling writes", { skip
   rmSync(outside, { force: true });
   const { ctx, executor } = createExecutor("workspace-write");
   try {
-    const allowed = await executor.run(executor.resolve({
+    const allowed = await (await executor.execute(executor.resolve({
       command: "printf allowed > " + inside + " && cat " + inside,
-    }));
+    }))).result();
     assert.equal(allowed.exitCode, 0, allowed.stderr.text);
     assert.equal(allowed.stdout.text, "allowed");
     assert.equal(existsSync(inside), true);
@@ -275,9 +275,9 @@ test("workspace-write allows workspace writes and denies sibling writes", { skip
       enforcement: "partial",
     });
 
-    const denied = await executor.run(executor.resolve({
+    const denied = await (await executor.execute(executor.resolve({
       command: "printf blocked > " + outside,
-    }));
+    }))).result();
     assert.notEqual(denied.exitCode, 0);
     assert.match(denied.stderr.text, /permission denied/i);
     assert.equal(existsSync(outside), false);
@@ -296,9 +296,9 @@ test("workspace-write allows workspace writes and denies sibling writes", { skip
 test("reports sandbox facts for restricted background processes", { skip: !CAN_RUN_NATIVE_GUARD }, async () => {
   const { ctx, executor } = createExecutor("read-only");
   try {
-    const process = await executor.start(executor.resolve({
-      command: "printf guarded-background",
-    }));
+    const process = await executor.execute(
+      executor.resolve({ command: "printf guarded-background", onExpiry: "none" }),
+    );
     await process.done;
 
     assert.equal(process.status, "completed");
@@ -321,9 +321,9 @@ test("reports sandbox facts for restricted background processes", { skip: !CAN_R
 test("preserves restricted token invariants in native descendants", { skip: !CAN_RUN_NATIVE_GUARD }, async () => {
   const { ctx, executor } = createExecutor("read-only");
   try {
-    const result = await executor.run(executor.resolve({
+    const result = await (await executor.execute(executor.resolve({
       command: "./native/bin/win32-x64/msys-token-guard.exe --probe-current-token",
-    }));
+    }))).result();
 
     assert.equal(result.exitCode, 0, result.stderr.text);
     assert.equal(result.stdout.text.replace(/\r\n/g, "\n"), "token-adjust-default=denied\n");
@@ -341,10 +341,10 @@ test("times out the complete restricted process tree", { skip: !CAN_RUN_NATIVE_G
   const { ctx, executor } = createExecutor("read-only");
   const started = Date.now();
   try {
-    const result = await executor.run(executor.resolve({
+    const result = await (await executor.execute(executor.resolve({
       command: "sleep 10",
       timeoutMs: 200,
-    }));
+    }))).result();
 
     assert.equal(result.timedOut, true);
     assert.equal(result.aborted, false);
@@ -365,10 +365,10 @@ test("aborts the complete restricted foreground process tree", { skip: !CAN_RUN_
   const timer = setTimeout(() => controller.abort(), 200);
   const started = Date.now();
   try {
-    const result = await executor.run(executor.resolve({
+    const result = await (await executor.execute(executor.resolve({
       command: "sleep 10",
       signal: controller.signal,
-    }));
+    }))).result();
 
     assert.equal(result.timedOut, false);
     assert.equal(result.aborted, true);
@@ -387,7 +387,9 @@ test("aborts the complete restricted foreground process tree", { skip: !CAN_RUN_
 test("kills the complete restricted background process tree", { skip: !CAN_RUN_NATIVE_GUARD }, async () => {
   const { ctx, executor } = createExecutor("read-only");
   try {
-    const process = await executor.start(executor.resolve({ command: "sleep 10" }));
+    const process = await executor.execute(
+      executor.resolve({ command: "sleep 10", onExpiry: "none" }),
+    );
     assert.equal(process.status, "running");
     assert.equal(process.kill(), true);
     await process.done;

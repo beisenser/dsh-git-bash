@@ -1,6 +1,6 @@
 {
   "name": "dsh-plugin-git-bash",
-  "version": "0.3.3",
+  "version": "0.3.4",
   "description": "Use Git for Windows Bash as the default DSH shell with restricted-mode support",
   "keywords": [
     "deepseek-harness",
@@ -16,7 +16,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "git+https://github.com/inmny/dsh-git-bash.git"
+    "url": "git+https://github.com/beisenser/dsh-git-bash.git"
   },
   "type": "module",
   "main": "lib/index.js",
@@ -56,7 +56,8 @@
     "access": "public"
   },
   "engines": {
-    "node": ">=24"
+    "node": ">=24",
+    "dsh": ">=0.1.6"
   },
   "dsh": {
     "bundle": {
@@ -79,40 +80,65 @@
   "scripts": {
     "clean": "node -e \"require('node:fs').rmSync('lib', { recursive: true, force: true })\"",
     "build:native": "node scripts/build-native.mjs",
-    "build": "pnpm run build:native && pnpm run clean && tsc -p tsconfig.json",
+    "build:ts": "tsc -p tsconfig.json",
+    "build": "pnpm run build:native && pnpm run clean && pnpm run build:ts",
     "typecheck": "tsc -p tsconfig.json --noEmit",
-    "test": "pnpm run build && node --test",
-    "pack:check": "npm pack --dry-run",
-    "prepack": "pnpm run build",
-    "prepublishOnly": "pnpm test"
+    "test": "node --test",
+    "pack:check": "npm pack --dry-run"
   },
   "peerDependencies": {
     "@deepseek-ai/cordis": "^4.0.1",
-    "@deepseek-ai/dsh-agent": "^0.1.6-alpha.0",
-    "@deepseek-ai/dsh-bash-local": "^0.1.6-alpha.0",
-    "@deepseek-ai/dsh-sandbox": "^0.1.6-alpha.0",
-    "@deepseek-ai/dsh-sandbox-policy": "^0.1.6-alpha.0",
-    "@deepseek-ai/dsh-shell": "^0.1.6-alpha.0",
-    "@deepseek-ai/dsh-system-prompt": "^0.1.6-alpha.0",
-    "@deepseek-ai/dsh-tools": "^0.1.6-alpha.0"
+    "@deepseek-ai/dsh-agent": ">=0.1.6",
+    "@deepseek-ai/dsh-bash-local": ">=0.1.6",
+    "@deepseek-ai/dsh-sandbox": ">=0.1.6",
+    "@deepseek-ai/dsh-sandbox-policy": ">=0.1.6",
+    "@deepseek-ai/dsh-shell": ">=0.1.6",
+    "@deepseek-ai/dsh-system-prompt": ">=0.1.6",
+    "@deepseek-ai/dsh-tools": ">=0.1.6"
+  },
+  "peerDependenciesMeta": {
+    "@deepseek-ai/dsh-agent": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-bash-local": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-sandbox": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-sandbox-policy": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-shell": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-system-prompt": {
+      "optional": true
+    },
+    "@deepseek-ai/dsh-tools": {
+      "optional": true
+    }
   },
   "dependencies": {
-    "@deepseek-ai/schemastery": "3.18.2"
+    "@deepseek-ai/cosmokit": "^1.8.2",
+    "@deepseek-ai/schemastery": "^3.18.4"
   },
   "devDependencies": {
     "@deepseek-ai/cordis": "4.0.2",
-    "@deepseek-ai/dsh-agent": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-bash-local": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-sandbox": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-sandbox-local": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-sandbox-policy": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-sandbox-windows-acl": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-shell": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-subprocess": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-subprocess-local": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-system-prompt": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-timeout": "0.1.6-alpha.2",
-    "@deepseek-ai/dsh-tools": "0.1.6-alpha.2",
+    "@deepseek-ai/dsh-agent": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-bash-local": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-bash-sandbox": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-http-proxy": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-sandbox": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-sandbox-local": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-sandbox-policy": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-sandbox-windows-acl": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-shell": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-subprocess": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-subprocess-local": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-timeout": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
     "@types/node": "24.10.1",
     "typescript": "5.9.3"
   },

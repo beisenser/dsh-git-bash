@@ -22,25 +22,30 @@ Web 界面中的 Bash 工具行可以展开查看 command、cwd、stdout/stderr 
 
 ## 安装或更新
 
-从 npm 安装固定版本到 Web profile：
-
-```sh
-dsh plugin --profile web add dsh-plugin-git-bash@0.3.3
-```
-
-更新现有安装时使用同一条命令。安装完成后重启 `dsh web`，让 Host 和浏览器 client 同时加载新版本，然后新建会话。
-
-安装最新版时可以省略版本号：
-
-```sh
-dsh plugin --profile web add dsh-plugin-git-bash
-```
-
-开发本地版本时传入 checkout 路径：
+从 git 源安装（本 fork 的推荐方式；仓库已包含编译好的 `lib/`，安装时不需要构建）：
 
 ```powershell
-dsh plugin --profile web add C:\path\to\dsh-git-bash
+dsh plugin --profile desktop add git+https://github.com/beisenser/dsh-git-bash.git
 ```
+
+安装完成后重启 DSH，让 Host 和浏览器 client 同时加载新版本，然后新建会话。
+
+`--profile desktop` 要求 Desktop 已完全退出（CLI 会检查 profile 是否已初始化）；想先隔离验证，可以换一个 profile 名，例如 `--profile webtest`，它不会影响 `desktop`。
+
+开发本地版本时传入 checkout 路径（pnpm 会建立符号链接，改代码只需重新 `pnpm run build:ts`）：
+
+```powershell
+dsh plugin --profile webtest add C:\path\to\dsh-git-bash
+```
+
+## 与 DSH 版本的对应关系
+
+| 插件版本 | DSH 宿主 |
+|---|---|
+| `0.3.4`（本 fork） | `0.2.0-rc.2`（含 `ShellExecutor.execute` + `executeArgv` 的抽象面） |
+| `0.3.3` 及更早 | `0.1.2-rc.1` ~ `0.1.6`（`run`/`start`/`runArgv`/`startArgv` 与 `settings.installSection` 时代） |
+
+`0.2.0-rc.2` 起宿主把插件的实时 Config 表单**按 loader 行 id** 建档，并直接从插件类的静态 `Config` 读 schema，因此本 fork 删除了旧的 `settings.installSection` 注册路径；设置项现在只经行配置（`cordis.patch.yml`）、`DSH_GIT_BASH_PATH` 或自动探测生效。
 
 ## 权限模式
 
@@ -85,24 +90,26 @@ dsh web
 
 - Windows x64
 - Node.js 24 或更高版本
-- DSH `0.1.2-rc.1`
+- DSH `0.2.0-rc.2`（见上方「与 DSH 版本的对应关系」）
 - Git for Windows x64
 
-npm 包包含预编译的 `msys-token-guard.exe` 和 `msys-token-guard-hook.dll`，普通安装不需要 Visual Studio 或 CMake。当前 native guard 仅支持 `win32-x64`；其他架构在受限模式下返回 `SANDBOX_UNAVAILABLE`，不会降级到未隔离执行。
+仓库与包内都已包含编译好的 `lib/`，以及预编译的 `msys-token-guard.exe` 和 `msys-token-guard-hook.dll`：**从 git 源或目录安装都不需要 TypeScript、Visual Studio 或 CMake**。`native/bin` 里已有产物时 `pnpm run build:native` 默认跳过重建（加 `--force` 或删除 `native/bin` 才会调用 cmake）。当前 native guard 仅支持 `win32-x64`；其他架构在受限模式下返回 `SANDBOX_UNAVAILABLE`，不会降级到未隔离执行。
 
 Microsoft Detours 4.0.1 源码按 MIT 许可存放在 `native/vendor/detours`，许可文本随 npm 包分发。Detours 的 DLL path 参数使用 Windows ANSI API，因此插件安装路径必须能由当前系统代码页无损表示，并且不能超过 `MAX_PATH`；不满足条件时 guard 会 fail closed。
 
 ## 开发
 
-安装依赖并运行完整验证：
+安装依赖并编译 TypeScript：
 
 ```sh
 pnpm install
-pnpm test
-pnpm run pack:check
+pnpm run build:ts      # 只编译 src -> lib（日常改代码用这个）
+pnpm run pack:check    # 校验发布文件清单
 ```
 
-在 Windows 上重建 native artifact 还需要 Visual Studio C++ Build Tools 和 CMake 3.25 或更高版本。`pnpm test` 会以 C++20、静态 MSVC runtime、CFG、CET、ASLR 和 NX 构建 native guard，然后运行 Windows ACL permission matrix、fail-closed、Web client 和 package metadata 测试。
+`pnpm test`（`node --test`）需要能 spawn 子进程的环境；它覆盖 Git Bash 探测、执行器权限矩阵、native guard 的 fail-closed 行为等。
+
+只有需要重建 native artifact 时才要 `pnpm run build:native -- --force`，并额外准备 Visual Studio C++ Build Tools 与 CMake 3.25 或更高版本；该脚本以 C++20、静态 MSVC runtime、CFG、CET、ASLR 和 NX 构建 guard。
 
 非 Windows 主机不会交叉编译 native guard，只会检查预编译 artifact 是否存在。
 

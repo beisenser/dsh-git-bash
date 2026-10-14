@@ -129,6 +129,7 @@
     "@deepseek-ai/dsh-bash-local": "0.2.0-rc.2",
     "@deepseek-ai/dsh-bash-sandbox": "0.2.0-rc.2",
     "@deepseek-ai/dsh-http-proxy": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-lazy-require": "0.2.0-rc.2",
     "@deepseek-ai/dsh-sandbox": "0.2.0-rc.2",
     "@deepseek-ai/dsh-sandbox-local": "0.2.0-rc.2",
     "@deepseek-ai/dsh-sandbox-policy": "0.2.0-rc.2",
@@ -139,7 +140,9 @@
     "@deepseek-ai/dsh-system-prompt": "0.2.0-rc.2",
     "@deepseek-ai/dsh-timeout": "0.2.0-rc.2",
     "@deepseek-ai/dsh-tools": "0.2.0-rc.2",
+    "@deepseek-ai/dsh-win32-process": "0.2.0-rc.2",
     "@types/node": "24.10.1",
+    "koffi": "3.1.1",
     "typescript": "5.9.3"
   },
   "packageManager": "pnpm@11.9.0"

@@ -1,6 +1,10 @@
 # dsh-plugin-git-bash
 
-让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 在 Windows 上默认使用 Git for Windows Bash，并保留 DSH 的 `read-only`、`workspace-write` 和 `danger-full-access` 权限语义。
+让 [DeepSeek Harness](https://github.com/deepseek-ai/deepseek-harness) 在 Windows 上默认使用 Git for Windows Bash。
+
+> ⚠️ **本 fork 的实测结论（win32-x64 + DSH 0.2.0-rc.2）：`read-only` / `workspace-write` 受限模式下 Git Bash
+> 无法启动，只有 `danger-full-access` 可用。** 原因与证据见下方
+> [「权限模式」](#权限模式)。原项目"在受限模式下保住 DSH 权限语义"的承诺在实际环境中**未成立**。
 
 ![Git Bash 在 DeepSeek Harness 中运行](assets/teaser.png)
 
@@ -49,20 +53,44 @@ dsh plugin --profile webtest add C:\path\to\dsh-git-bash
 
 ## 权限模式
 
-### `read-only` 和 `workspace-write`
+### `read-only` 和 `workspace-write` —— **实测不可用（见下）**
 
-受限命令仍由 DSH Windows ACL sandbox 创建 `WRITE_RESTRICTED` token。插件在 sandbox 内先运行 native guard，再由 guard 启动 Git Bash：
+设计意图是：受限命令由 DSH Windows ACL sandbox 创建 `WRITE_RESTRICTED` token，插件在 sandbox 内先运行 native guard，再由 guard 启动 Git Bash：
 
 ```text
 DSH ACL runner -> msys-token-guard.exe -> bash.exe -> child processes
 ```
 
-- `read-only` 可以启动 Git Bash，但不能写 workspace。
-- `workspace-write` 只能写 DSH 授权的 workspace 和 private temp。
+**但 win32-x64 实测结论是：Git Bash 在受限模式下无法启动，且这不是 guard 能补的。**
+
+用 DSH 自带的 ACL runner（`@deepseek-ai/dsh-sandbox-windows-acl/lib/runner.js`）直接驱动，`read-only` 与 `workspace-write` 两种模式都得到同一个结果：
+
+```text
+bash.exe: *** fatal error - NtCreateDirectoryObject(
+    \BaseNamedObjects\msys-2.0S5-…): 0xC0000022        # STATUS_ACCESS_DENIED
+```
+
+（无 stderr 的场合以 `0xC0000142` / `STATUS_DLL_INIT_FAILED` 形式出现。）
+
+**根因**：MSYS2 的 runtime 启动时必须在 `\BaseNamedObjects` 下创建自己的命名空间目录对象；该目录的 DACL 属系统所有，**不在 workspace ACL 授权范围内**，而受限令牌的 restricting SID 未被授予写权限，于是 `msys-2.0.dll` 初始化直接中止。这是对象命名空间层面的墙，不是某个文件操作被拒。
+
+**为什么 guard 补不了**：guard 做的是"给子令牌的 default DACL 补上 restricting SID 的 allow ACE"（外加拦截 MSYS runtime 的 DACL 改写尝试），它影响的是**我们创建的对象**；`\BaseNamedObjects` 是 OS 拥有的既有对象，插件层无法为其授予权限。**这是 OS 层冲突，不是插件缺陷。**
+
+同时排除的两个猜测（都实测否掉了）：
+
+- **不是"restricting SID 必然杀死 MSYS"**：用自建受限令牌（多种 SID 组合，含 runner 式的"用户 SID + 能力 SID"形状），`bash.exe` 全部 `exit 0`；
+- **不是完整性级别（Low IL）**：DSH runner 的令牌并未设 Low IL，而它照样崩。
+
+**由此得到的实际结论**：Windows 上 Git Bash 与 DSH 的受限沙箱**不可兼得**。要用 Git Bash 就得走 `danger-full-access`；要保持受限沙箱就不要用 Git Bash。
+
+### 失败是可读的（本 fork 新增）
+
+受限模式下调用不再返回裸退出码：`0xC0000142` / `0xC0000022`，或 stderr 命中 MSYS 启动特征（`NtCreateDirectoryObject`、`BaseNamedObjects`、`msys-2.0`、`couldn't create signal pipe`、`cygheap`、DLL 初始化）时，前台调用抛出 `SANDBOX_UNAVAILABLE` 并附带上述根因说明。后台任务仍报告原始退出码（进程结算由基类支配，插件不抢写 `proc.sandbox`）。
 
 ### `danger-full-access`
 
-该模式不经过 native guard，直接运行 Git Bash，与插件 0.1.x 的执行方式一致。
+该模式不经过 native guard，直接运行 Git Bash，与插件 0.1.x 的执行方式一致；**这是本机唯一可用的模式**（实测：`MINGW64_NT-10.0`、git 2.47.1、`DSH_*` 已注入、工作区内外写入均正常）。
+
 
 ## 配置 Git Bash 路径
 

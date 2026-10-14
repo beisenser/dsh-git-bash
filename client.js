@@ -623,31 +623,10 @@ window.__ModuleLoader__.load({
     function apply(ctx) {
       ctx.effect(() => {
         const disposeCommandStyle = installCommandWrapStyle();
-        const disposeSettingsStyle = installSettingsStyle();
         return () => {
-          disposeSettingsStyle();
           disposeCommandStyle();
         };
       }, "git-bash: client styles");
-
-      const t = ctx.locale.bind(LOCALE_NAMESPACE);
-      ctx.effect(() => ctx.locale.register(LOCALE_NAMESPACE, settingsLocales),
-        "git-bash: settings dictionaries");
-      // The configurable settings tab collects namespaces from raw keyed entries, so
-      // shadowed cards (same key, different priority) yield duplicate namespaces.
-      installSettingsNamespaceDedupe(ctx);
-      const scope = ctx.settingsScope.bind({ namespace: SETTINGS_NAMESPACE });
-      ctx.slots.inject(SETTINGS_SLOT, () => ctx.slots.register({
-        name: SETTINGS_SLOT,
-        key: SETTINGS_NAMESPACE,
-        priority: PRIORITY,
-        locale: LOCALE_NAMESPACE,
-        inject: () => ({
-          scope,
-          pickDirectory: () => ctx.uiWorkspace.pickDirectory(),
-          t,
-        }),
-      }, GitBashSettingsCard));
 
       ctx.slots.inject(SLOT, () => {
         const original = ctx.slots.entries(SLOT)
@@ -676,11 +655,6 @@ window.__ModuleLoader__.load({
 
     const inject = [
       "slots",
-      "locale",
-      "settingsScope",
-      "connection",
-      "remote",
-      "uiWorkspace",
     ];
     module.exports = {
       apply,

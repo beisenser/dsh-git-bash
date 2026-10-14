@@ -81,19 +81,25 @@ export interface Config extends LocalBashConfig {
 
 const LOCAL_BASH_CONFIG = SandboxBashExecutor.Config;
 
-type ResolvedGitBashConfig = Required<Omit<Config, "cwd">> & Pick<Config, "cwd">;
+// The inherited budget fields must stay `.volatile()` refs (`config.timeoutMs.get()`),
+// but schemastery rejects volatile fields inside a schema that composes others
+// as a list — a list is an "<index>" path, and a volatile field may only sit on
+// a fixed object path. So the extended schema is a FLAT object built from the
+// base schema's own field definitions rather than a composition of two schemas.
+// schemastery's validator walks `schema.dict` and never re-runs a constructor,
+// so reusing the entries keeps the base defaults and volatile metadata verbatim.
+// test/config.test.mjs pins this contract.
+const LOCAL_BASH_FIELDS = LOCAL_BASH_CONFIG.dict as Record<string, z<unknown>>;
 
 // Keep the field schema permissive enough to render a recovery card for a
 // legacy bad value; resolveConfiguredExecutable enforces it on new writes and use.
-export const Config = z.intersect([
-  LOCAL_BASH_CONFIG,
-  z.object({
-    executable: z.string()
-      .default("")
-      .role("path")
-      .description("Absolute path to Git for Windows bash.exe; blank uses automatic discovery."),
-  }),
-]) as z<Config>;
+export const Config = z.object({
+  ...LOCAL_BASH_FIELDS,
+  executable: z.string()
+    .default("")
+    .role("path")
+    .description("Absolute path to Git for Windows bash.exe; blank uses automatic discovery."),
+}) as unknown as z<Config>;
 
 function resolveConfiguredExecutable(config: Config): string | undefined {
   const executable = config.executable?.trim();

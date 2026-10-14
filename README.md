@@ -76,10 +76,11 @@ bash.exe: *** fatal error - NtCreateDirectoryObject(
 
 **为什么 guard 补不了**：guard 做的是"给子令牌的 default DACL 补上 restricting SID 的 allow ACE"（外加拦截 MSYS runtime 的 DACL 改写尝试），它影响的是**我们创建的对象**；`\BaseNamedObjects` 是 OS 拥有的既有对象，插件层无法为其授予权限。**这是 OS 层冲突，不是插件缺陷。**
 
-同时排除的两个猜测（都实测否掉了）：
+同时排除的猜测（实测否掉）与仍然存疑的部分：
 
 - **不是"restricting SID 必然杀死 MSYS"**：用自建受限令牌（多种 SID 组合，含 runner 式的"用户 SID + 能力 SID"形状），`bash.exe` 全部 `exit 0`；
-- **不是完整性级别（Low IL）**：DSH runner 的令牌并未设 Low IL，而它照样崩。
+- **完整性级别（Low IL）仍未直接验证，但它是头号嫌疑**：沙箱包自己的 README 说明每次授权会写入"**被降级令牌必须匹配的 Low 完整性标签**"，即令牌确实被降到 Low IL；而我的合成令牌没有设 IL，所以那组实验并不构成对 IL 的排除。我尝试直接给自建令牌设 Low IL 时，PowerShell 的 `SetTokenInformation`/`GetTokenInformation` 在本机一律返回 `Win32 6`，未能取得数据。
+- **结论上不影响取舍**：无论那一层是目录对象命名空间的 ACL、还是 Low IL 的无写升（no-write-up），两者都在插件职权之外，受限模式与 Git Bash 在 Windows 上不可兼得。
 
 **由此得到的实际结论**：Windows 上 Git Bash 与 DSH 的受限沙箱**不可兼得**。要用 Git Bash 就得走 `danger-full-access`；要保持受限沙箱就不要用 Git Bash。
 
